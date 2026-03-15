@@ -4,15 +4,15 @@
 export const ENVS = {
   dev: {
     baseUrl: 'http://<DEV_IP>:18000',
-    tenant: 'pg.citya',
-    stateTenant: 'pg',
+    tenant: 'statea.citya',
+    stateTenant: 'statea',
     username: __ENV.DIGIT_USERNAME || 'ADMIN',
     password: __ENV.DIGIT_PASSWORD || 'eGov@123',
   },
   prod: {
     baseUrl: 'http://<PROD_IP>:18000',
-    tenant: 'pg.citya',
-    stateTenant: 'pg',
+    tenant: 'statea.citya',
+    stateTenant: 'statea',
     username: __ENV.DIGIT_USERNAME || 'ADMIN',
     password: __ENV.DIGIT_PASSWORD || 'eGov@123',
   },
