@@ -68,10 +68,10 @@ export function pgrLifecycle() {
     }
     thinkTime();
 
-    // Step 3: Assign to self (employee as LME)
+    // Step 3: Assign (auto-route via empty assignees)
     const assigned = updateComplaint(
       env.baseUrl, employeeToken, employeeUserInfo,
-      service, 'ASSIGN', [employeeUUID], 'Load test assignment'
+      service, 'ASSIGN', [], 'Load test assignment'
     );
     if (!assigned) return;
     thinkTime();
@@ -79,33 +79,20 @@ export function pgrLifecycle() {
     // Step 4: Resolve
     const resolved = updateComplaint(
       env.baseUrl, employeeToken, employeeUserInfo,
-      assigned, 'RESOLVE', [employeeUUID], 'Load test resolution'
+      assigned, 'RESOLVE', [], 'Load test resolution'
     );
     if (!resolved) return;
     thinkTime();
 
-    // Step 5: Rate & Close (as citizen)
-    // Login as citizen for RATE action (citizens pre-created by Ansible setup)
-    const citizenAuth = login(env.baseUrl, citizenPhone, 'eGov@123', env.tenant, 'CITIZEN');
-    if (!citizenAuth) {
-      console.error(`Citizen login failed for ${citizenPhone}, skipping RATE`);
-      return;
-    }
-    const rated = updateComplaint(
-      env.baseUrl, citizenAuth.token, citizenAuth.userInfo,
-      resolved, 'RATE', [], 'Load test rating - 5 stars', 5
-    );
-    if (!rated) return;
-    thinkTime();
-
-    // Step 6: Verify via search
+    // Step 5: Verify via search
     const found = searchComplaint(
       env.baseUrl, employeeToken, employeeUserInfo,
       env.tenant, service.serviceRequestId
     );
     if (!found) return;
 
-    if (found.applicationStatus === 'CLOSEDAFTERRESOLUTION') {
+    // Success if complaint reached RESOLVED (RATE step skipped, so no CLOSEDAFTERRESOLUTION)
+    if (found.applicationStatus === 'RESOLVED') {
       success = true;
     } else {
       console.warn(`Unexpected final status: ${found.applicationStatus}`);
