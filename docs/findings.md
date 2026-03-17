@@ -46,6 +46,19 @@ At low record counts, dev and prod perform nearly identically — the workload i
 
 **VU ceilings:** Dev ~250, Prod ~300. Failures at the ceiling are caused by connection exhaustion and PgBouncer timeouts, not CPU.
 
+## Resource Profile Ramp Tests (0→300 VUs, Empty Database)
+
+Continuous ramp from 0 to 300 virtual users over 10 minutes, testing CPU-constrained profiles on both machines. Each transaction is a full PGR lifecycle (CREATE → ASSIGN → RESOLVE → SEARCH).
+
+![Ramp 0-300 VU comparison — Empty DB](/PGR-load-tests/ramp-300vu-empty-db.png)
+
+**Key observations:**
+- **4c-8g on dev (8 vCPU)**: Errors spike above 200 VUs (~80% error rate at 250+ VUs). Degradation point: ~150 VUs.
+- **8c-16g on prod (16 vCPU)**: Errors appear at ~250 VUs (~15% at 300 VUs). CPU limits are tighter relative to machine capacity.
+- **8c-16g on dev (8 vCPU)**: Clean run — 99.8% success at 300 VUs. The 8-core budget matches the machine's actual capacity.
+- **16c-32g on prod (16 vCPU)**: Clean run — 100% success, no errors. Full machine capacity handles 300 VUs.
+- All profiles cross the 15s transaction threshold by ~20-30 VUs due to think time in the test (1-3s per API call).
+
 ## Database Performance Issues
 
 Three root causes were identified by enabling Postgres slow query logging (`log_min_duration_statement = 100ms`) and analyzing query plans with `EXPLAIN (ANALYZE, BUFFERS)`.
