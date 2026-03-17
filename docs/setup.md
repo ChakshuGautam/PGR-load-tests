@@ -46,22 +46,13 @@ Open these ports from the control machine's IP:
 
 ### Run the Setup Playbook
 
-Update `ansible/inventory.ini` with your machine IPs:
+Copy the example inventory and fill in your machine IPs:
 
-```ini
-[dev]
-<DEV_IP> ansible_user=ubuntu ansible_ssh_private_key_file=keys/docker-compose.pem
-
-[prod]
-<PROD_IP> ansible_user=ubuntu ansible_ssh_private_key_file=keys/docker-compose.pem
-
-[targets:children]
-dev
-prod
-
-[all:vars]
-ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+```bash
+cp ansible/inventory.ini.example ansible/inventory.ini
 ```
+
+Edit `ansible/inventory.ini` — replace `<DEV_IP>` and `<PROD_IP>` with your machine IPs. Place your SSH key at `keys/docker-compose.pem`. Both files are gitignored.
 
 Run the playbook:
 
