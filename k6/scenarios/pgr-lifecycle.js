@@ -14,7 +14,45 @@ let employeeToken = null;
 let employeeUserInfo = null;
 let employeeUUID = null;
 
-const SERVICE_CODE = 'StreetLightNotWorking';
+// All 33 PGR ServiceDefs from full-dump.sql — each VU/iteration uses a different one
+const SERVICE_CODES = [
+  'StreetLightNotWorking',
+  'NoStreetlight',
+  'GarbageNeedsTobeCleared',
+  'BurningOfGarbage',
+  'DamagedGarbageBin',
+  'NonSweepingOfRoad',
+  'OverflowingOrBlockedDrain',
+  'NoWaterSupply',
+  'ShortageOfWater',
+  'DirtyWaterSupply',
+  'BrokenWaterPipeOrLeakage',
+  'WaterPressureisVeryLess',
+  'BlockOrOverflowingSewage',
+  'illegalDischargeOfSewage',
+  'DamagedRoad',
+  'WaterLoggedRoad',
+  'ManholeCoverMissingOrDamaged',
+  'DamagedOrBlockedFootpath',
+  'ConstructionMaterialLyingOntheRoad',
+  'RequestSprayingOrFoggingOperation',
+  'OpenDefecation',
+  'DeadAnimals',
+  'StrayAnimals',
+  'NoWaterOrElectricityinPublicToilet',
+  'PublicToiletIsDamaged',
+  'DirtyOrSmellyPublicToilets',
+  'ParkRequiresMaintenance',
+  'CuttingOrTrimmingOfTreeRequired',
+  'IllegalCuttingOfTrees',
+  'IllegalParking',
+  'IllegalConstructions',
+  'IllegalShopsOnFootPath',
+  'Others',
+];
+
+// Per-VU iteration counter for rotating service codes
+let iterationCount = 0;
 
 function thinkTime() {
   sleep(Math.random() * 2 + 1);
@@ -45,8 +83,11 @@ export function pgrLifecycle() {
     if (!ensureEmployeeAuth(env)) return;
     thinkTime();
 
-    // Citizen identity for this VU
+    // Pick service code: each VU starts at a different offset, rotates each iteration
     const vuId = exec.vu.idInTest;
+    const serviceCode = SERVICE_CODES[(vuId + iterationCount++) % SERVICE_CODES.length];
+
+    // Citizen identity — vary by VU so different citizens file complaints
     const citizenIndex = (vuId % 100) + 1;
     const citizenPhone = `9900000${String(citizenIndex).padStart(3, '0')}`;
     const citizenName = `LoadTestCitizen_${citizenIndex}`;
@@ -54,7 +95,7 @@ export function pgrLifecycle() {
     // Step 2: Create complaint (with 401 retry)
     let service = createComplaint(
       env.baseUrl, employeeToken, employeeUserInfo,
-      env.tenant, SERVICE_CODE, citizenPhone, citizenName
+      env.tenant, serviceCode, citizenPhone, citizenName
     );
     if (!service) {
       // Could be 401 — clear auth and retry once
@@ -62,7 +103,7 @@ export function pgrLifecycle() {
       if (!ensureEmployeeAuth(env)) return;
       service = createComplaint(
         env.baseUrl, employeeToken, employeeUserInfo,
-        env.tenant, SERVICE_CODE, citizenPhone, citizenName
+        env.tenant, serviceCode, citizenPhone, citizenName
       );
       if (!service) return;
     }

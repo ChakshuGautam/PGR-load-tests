@@ -65,5 +65,3 @@ services:
     cpus: 0.08
   jupyter:
     cpus: 0.08
-  egov-url-shortening:
-    cpus: 0.02
