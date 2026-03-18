@@ -165,7 +165,32 @@ Lifecycles/s
 - **Memory leaks under stress**: accumulated GC pressure visible in sustained phase
 - **Queue drain behavior**: do in-flight requests complete cleanly after spikes?
 
-Results from this test are tagged by phase (spike/valley/sustained) for per-phase metric breakdown.
+### Results (Prod 16c-32g, 1M Records, 3 Runs)
+
+![Variable Throughput Results](/variable-throughput-results.png)
+
+All 3 runs are highly repeatable (< 5% variance on all key metrics):
+
+| Metric | Run 1 | Run 2 | Run 3 |
+|--------|-------|-------|-------|
+| Iterations | 7,664 | 7,659 | 7,654 |
+| Throughput | 12.2/s | 12.2/s | 12.1/s |
+| HTTP Error Rate | 58.1% | 57.1% | 57.3% |
+| Success Rate | 4.4% | 4.7% | 4.3% |
+| p50 Latency | 411ms | 412ms | 414ms |
+| p95 Latency | 37.7s | 36.6s | 36.1s |
+
+**Key findings from the spike/valley pattern:**
+
+1. **No recovery after spikes**: After Spike 1, the system never fully recovers. Error rates stay elevated through Valley 1 (20-40%) and climb higher with each subsequent spike. By the Sustained phase, errors are 70-75% even at moderate 10/s load.
+
+2. **VU accumulation**: k6 keeps spawning VUs to meet the target rate, but existing VUs are blocked on slow responses. VU count climbs to 350+ and stays there — the system is saturated with in-flight requests.
+
+3. **Queue drain is the bottleneck**: The valleys don't provide enough time for the system to drain its queues. Kafka persister lag and connection pool exhaustion from spikes persist into the next phase.
+
+4. **Median vs tail divergence**: Median latency stays low (411ms) because valley-phase requests are fast. But p95 is 37s because spike-phase requests are extremely slow — a bimodal distribution.
+
+**Implication**: At 1M records, the system cannot handle bursty traffic patterns. The ramp test (which gives services time to warm up gradually) shows much better results than real-world spike patterns would produce. For production deployments at scale, either reduce the DB size (archive old complaints) or apply the `isFuzzyEnabled=false` fix to flatten the query cost.
 
 ## Database Performance Issues
 
