@@ -105,17 +105,38 @@ At low record counts, dev and prod perform nearly identically — the workload i
 
 **VU ceilings:** Dev ~250, Prod ~300. Failures at the ceiling are caused by connection exhaustion and PgBouncer timeouts, not CPU.
 
-## Resource Profile Ramp Tests (0→300 VUs, Empty Database)
+## Resource Profile Performance Over Time
 
-Continuous ramp from 0 to 300 virtual users over 10 minutes, testing CPU-constrained profiles on both machines. Charts show **server latency** (`http_req_duration`) — actual API response time, excluding think time between calls.
+All profiles tested with a continuous 0→300 VU ramp over 10 minutes (plus 2-minute warmup). The time-series chart below shows p95 server latency and HTTP error rate evolving over the full test duration, with VU count shown at bottom. Solid lines are empty-DB runs; dashed lines are 1M-record runs.
 
-![Ramp 0-300 VU comparison — Empty DB](/ramp-300vu-empty-db.png)
+![All profiles over time — latency, errors, and VU count](/ramp-300vu-timeseries.png)
+
+**How to read this chart:** The top x-axis shows VU count at each point in time. All profiles start the main ramp at t=2min. Latency and errors diverge as load increases — the point where each line pulls away from the pack is that profile's degradation point.
 
 **Key observations:**
-- **4c-8g on dev (8 vCPU)**: Errors spike above 200 VUs (~80% error rate at 250+ VUs). Degradation point: ~150 VUs.
-- **8c-16g on prod (16 vCPU)**: Errors appear at ~250 VUs (~15% at 300 VUs). CPU limits are tighter relative to machine capacity.
-- **8c-16g on dev (8 vCPU)**: Clean run — 99.8% success at 300 VUs. The 8-core budget matches the machine's actual capacity.
-- **16c-32g on prod (16 vCPU)**: Clean run — 100% success, no errors. Full machine capacity handles 300 VUs.
+
+- **4c-8g on dev** (pink) degrades first — p95 latency crosses 15s at ~6 min (120 VUs), errors spike to 80% by 9 min (~200 VUs). This profile is too constrained for more than light use.
+- **8c-16g on prod** (blue solid) shows steadily rising latency from the start. Despite high p95 (60s at peak), errors stay near 0% until the very end — the system is slow but not failing. This profile caps the request pipeline without breaking it.
+- **8c-16g on dev** (green) and **16c-32g on prod** (purple solid) are the clean performers on empty DB. Both keep latency manageable (<40s p95) with 0% errors through 300 VUs. These profiles match their respective machine capacities.
+- **1M records** (dashed lines) shift latency curves left by ~2 minutes. The 8c-16g/1M (blue dashed) diverges from its empty-DB counterpart around 5 min (~90 VUs), while 16c-32g/1M (purple dashed) stays close to empty-DB until ~10 min (~240 VUs).
+- **The 15s threshold** (red dotted line) is crossed by all profiles eventually, but the timing varies from 6 min (4c-8g) to 10+ min (16c-32g empty).
+
+### Degradation Points by Profile
+
+| Profile | Machine | DB | Latency crosses 15s | Errors > 5% | Max error rate |
+|---------|---------|----|--------------------|-------------|----------------|
+| 4c-8g | dev (8 vCPU) | empty | ~6 min (120 VUs) | ~8 min (180 VUs) | 98% |
+| 8c-16g | prod (16 vCPU) | empty | ~5 min (90 VUs) | ~13 min (290 VUs) | 37% |
+| 8c-16g | dev (8 vCPU) | empty | ~8 min (180 VUs) | never | 0% |
+| 16c-32g | prod (16 vCPU) | empty | ~10 min (240 VUs) | never | 0% |
+| 8c-16g | prod (16 vCPU) | 1M | ~4 min (60 VUs) | ~11 min (270 VUs) | 15% |
+| 16c-32g | prod (16 vCPU) | 1M | ~8 min (180 VUs) | ~12 min (300 VUs) | 8% |
+
+### By VU Count (Binned)
+
+The charts below bin the same data by VU range instead of time, making it easier to compare latency and error rates at specific concurrency levels.
+
+![Ramp 0-300 VU comparison — Empty DB](/ramp-300vu-empty-db.png)
 
 ### With 1M Records (Prod)
 
